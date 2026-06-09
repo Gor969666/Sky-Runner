@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="hy">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SKY RUNNER</title>
+    <style>
+        body { margin: 0; background: #87CEEB; overflow: hidden; touch-action: none; font-family: Arial, sans-serif; }
+        canvas { display: block; touch-action: none; }
+        
+        #mainMenu { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: red; color: white; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 200; }
+        #pauseMenu { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 280px; padding: 20px; background: white; color: red; border: 3px solid red; border-radius: 15px; display: none; flex-direction: column; align-items: center; z-index: 250; text-align: center; }
+        
+        .btn { width: 100%; padding: 15px; margin: 10px 0; background: red; color: white; border: none; border-radius: 10px; font-weight: bold; font-size: 20px; cursor: pointer; display: flex; justify-content: center; align-items: center; }
+        
+        #hud { position: absolute; top: 10px; left: 10px; color: white; font-size: 20px; font-weight: bold; z-index: 50; }
+        #pauseBtn { position: absolute; top: 10px; right: 10px; padding: 10px; background: white; color: red; border: none; z-index: 60; font-weight: bold; border-radius: 5px; }
+        
+        #jumpBtn { 
+            position: absolute; bottom: 40px; right: 40px; width: 100px; height: 100px; border-radius: 50%; 
+            background: white; color: red; border: 4px solid red; font-weight: bold; display: none; 
+            z-index: 300; font-size: 18px; justify-content: center; align-items: center;
+        }
+    </style>
+</head>
+<body id="body">
+    <div id="hud">Միավոր: 0 | Կյանքեր: ❤️❤️❤️❤️❤️</div>
+    <button id="pauseBtn" onclick="togglePause()">||</button>
+    <button id="jumpBtn">ՑԱՏԿ</button>
+
+    <div id="mainMenu">
+        <h1>SKY RUNNER</h1>
+        <button class="btn" style="background:white; color:red; width: 200px;" onclick="startGame()">ՍԿՍԵԼ ԽԱՂԸ</button>
+    </div>
+
+    <div id="pauseMenu">
+        <h2 id="pTitle">ԴԱԴԱՐ</h2>
+        <button class="btn" onclick="resumeGame()">ՇԱՐՈՒՆԱԿԵԼ</button>
+        <button class="btn" onclick="location.reload()">ԴՈՒՐՍ ԳԱԼ</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const mainMenu = document.getElementById("mainMenu");
+        const pauseMenu = document.getElementById("pauseMenu");
+        const pTitle = document.getElementById("pTitle");
+        const jumpBtn = document.getElementById("jumpBtn");
+        const hud = document.getElementById("hud");
+
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.onresize = resize; resize();
+
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) { jumpBtn.style.display = "flex"; }
+
+        let gameRunning = false, score = 0, lives = 5;
+        let ball = { x: 50, y: 100, r: 20, vy: 0, jumping: false };
+        let obs = { x: 800, y: 0, w: 40, h: 40 };
+        let coin = { x: 600, y: window.innerHeight - 80, r: 15 };
+
+        function updateHUD() { hud.innerText = "Միավոր: " + score + " | Կյանքեր: " + "❤️".repeat(lives); }
+        function startGame() { mainMenu.style.display = "none"; gameRunning = true; requestAnimationFrame(update); }
+        function resumeGame() { pauseMenu.style.display = "none"; gameRunning = true; requestAnimationFrame(update); }
+        function togglePause() { gameRunning = false; pauseMenu.style.display = "flex"; pTitle.innerText = "ԴԱԴԱՐ"; }
+
+        function jump() { if (!ball.jumping && gameRunning) { ball.vy = -14; ball.jumping = true; } }
+        jumpBtn.ontouchstart = (e) => { e.preventDefault(); jump(); };
+        window.addEventListener('keydown', (e) => { if(e.code === 'Space') jump(); });
+
+        function update() {
+            if (!gameRunning) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = "red";
+            ctx.fillRect(0, canvas.height - 30, canvas.width, 30);
+            ctx.fillRect(obs.x, canvas.height - 70, obs.w, obs.h);
+            
+            ctx.fillStyle = "yellow";
+            ctx.beginPath(); ctx.arc(coin.x, coin.y, coin.r, 0, Math.PI*2); ctx.fill();
+
+            ctx.fillStyle = "red";
+            ball.vy += 0.7; ball.y += ball.vy;
+            if (ball.y > canvas.height - 50) { ball.y = canvas.height - 50; ball.vy = 0; ball.jumping = false; }
+            ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2); ctx.fill();
+
+            obs.x -= 8; coin.x -= 8;
+            if (obs.x < -40) obs.x = canvas.width;
+            
+            if (coin.x < -30) {
+                coin.x = canvas.width + Math.random() * 400;
+                coin.y = canvas.height - 70 - Math.random() * 80;
+            }
+
+            if (obs.x < ball.x + 20 && obs.x + 40 > ball.x - 20 && ball.y > canvas.height - 70) {
+                lives--; obs.x = canvas.width; updateHUD();
+                if (lives <= 0) { gameRunning = false; pauseMenu.style.display = "flex"; pTitle.innerText = "GAME OVER: " + score; }
+            }
+            if (Math.hypot(ball.x - coin.x, ball.y - coin.y) < 35) { score += 10; coin.x = canvas.width + 500; updateHUD(); }
+
+            requestAnimationFrame(update);
+        }
+    </script>
+</body>
+</html>
